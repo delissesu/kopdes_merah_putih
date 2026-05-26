@@ -20,6 +20,11 @@ VALID_USER_ID_EMPTY_CART: int = 1
 INVALID_USER_ID: int = 9999
 VALID_USER_ID_EXCEED_STOCK: int = 2
 VALID_USER_ID_INSUFFICIENT_BALANCE: int = 4
+VALID_USER_ID_SUCCESS: int = 5
+
+# TC-06
+VALID_USER_ID_VOUCHER: int = 6
+PRODUK_ID_CEK_VOUCHER: int = 4
 
 
 def test_payment_user_not_found() -> None:
@@ -165,15 +170,89 @@ def test_payment_insufficient_balance() -> None:
         "userId": VALID_USER_ID_INSUFFICIENT_BALANCE,
         "voucherNames": [],
     }
-    
-    expected_status: str =  "Failed"
+
+    expected_status: str = "Failed"
     expected_message: str = "Saldo Anda Tidak Mencukupi"
-    
-    response = client.post('/cart/pay', json=payload_pembayaran)
-    
+
+    response = client.post("/cart/pay", json=payload_pembayaran)
+
     data = response.json()
-    
+
     assert response.status_code == 200
-    assert data['Status'] ==  expected_status
-    assert data['Message'] == expected_message
-    
+    assert data["Status"] == expected_status
+    assert data["Message"] == expected_message
+
+
+def test_payment_success_no_voucher() -> None:
+    response_product = client.get("/products")
+    target_product = next(
+        p for p in response_product.json() if p["available_amount"] > 0
+    )
+
+    payload_keranjang: dict[str, Any] = {
+        "userId": VALID_USER_ID_SUCCESS,
+        "productId": target_product["id"],
+        "quantity": 1,
+    }
+
+    response_add = client.post("/cart/add/product", json=payload_keranjang)
+
+    # client.post("/cart/add/products", json=payload_keranjang)
+    assert (
+        response_add.json()["Status"] == "Success"
+    ), f"Produk gagal masuk keranjang: {response_add.json()}"
+
+    payload_pembayaran: dict[str, Any] = {
+        "userId": VALID_USER_ID_SUCCESS,
+        "voucherNames": [],
+    }
+    # print(payload_pembayaran)
+
+    expected_status: str = "Success"
+    expected_message: str = "Keranjang Anda Berhasil Dibayar"
+
+    response = client.post("/cart/pay", json=payload_pembayaran)
+    print(response)
+
+    data = response.json()
+
+    assert response.status_code == 200
+    assert (
+        data["Status"] == expected_status
+    ), f"Gagal bayar! Pesan dari server: {data.get('Message')}"
+    assert data["Message"] == expected_message
+
+    assert "Detail" in data
+    assert "total_paid" in data["Detail"]
+
+
+def test_payment_fixed_voucher() -> None:
+    payload_keranjang: dict[str, Any] = {
+        "userId": VALID_USER_ID_VOUCHER,
+        "productId": PRODUK_ID_CEK_VOUCHER,
+        "quantity": 1,
+    }
+
+    response_add = client.post("/cart/add/product", json=payload_keranjang)
+    assert (
+        response_add.json()["Status"] == "Success"
+    ), f"Gagal masuk keranjang : {response_add.json()}"
+
+    payload_pembayaran: dict[str, Any] = {
+        "userId": VALID_USER_ID_VOUCHER,
+        "voucherNames": ["DISKON_FLAT"],
+    }
+
+    expected_status: str = "Success"
+    expected_message: str = "Keranjang Anda Berhasil Dibayar"
+
+    response = client.post("/cart/pay", json=payload_pembayaran)
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["Status"] == expected_status, f"Gagal bayar: {data.get('Message')}"
+    assert data["Message"] == expected_message
+
+    assert data["Detail"]["subtotal"] == 100000
+    assert data["Detail"]["voucher_discount"] == 10000
+    assert data["Detail"]["total_paid"] == 90000
