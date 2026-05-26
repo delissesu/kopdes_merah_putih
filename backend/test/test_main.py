@@ -19,6 +19,7 @@ client = TestClient(app)
 VALID_USER_ID_EMPTY_CART: int = 1
 INVALID_USER_ID: int = 9999
 VALID_USER_ID_EXCEED_STOCK: int = 2
+VALID_USER_ID_INSUFFICIENT_BALANCE: int = 4
 
 
 def test_payment_user_not_found() -> None:
@@ -129,7 +130,7 @@ def test_payment_quantity_exceeds_stock() -> None:
         "userId": USER_A,
         "voucherNames": [],
     }
-    
+
     response = client.post("/cart/pay", json=payload_pembayaran)
 
     # hit payment endpoint
@@ -143,3 +144,36 @@ def test_payment_quantity_exceeds_stock() -> None:
     assert data["Message"] == expected_message
 
 
+def test_payment_insufficient_balance() -> None:
+    response_cart = client.get(f"cart/{VALID_USER_ID_INSUFFICIENT_BALANCE}")
+    cart_items = response_cart.json()
+
+    if len(cart_items) == 0:
+        response_products = client.get("/products")
+        target_product = next(
+            p for p in response_products.json() if p["available_amount"] > 0
+        )
+
+        payload_keranjang: dict[str, Any] = {
+            "userId": VALID_USER_ID_INSUFFICIENT_BALANCE,
+            "productId": target_product["id"],
+            "quantity": 1,
+        }
+        client.post("/cart/add/product", json=payload_keranjang)
+
+    payload_pembayaran: dict[str, Any] = {
+        "userId": VALID_USER_ID_INSUFFICIENT_BALANCE,
+        "voucherNames": [],
+    }
+    
+    expected_status: str =  "Failed"
+    expected_message: str = "Saldo Anda Tidak Mencukupi"
+    
+    response = client.post('/cart/pay', json=payload_pembayaran)
+    
+    data = response.json()
+    
+    assert response.status_code == 200
+    assert data['Status'] ==  expected_status
+    assert data['Message'] == expected_message
+    
