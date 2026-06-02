@@ -236,7 +236,10 @@ function App() {
             <h1>Kopdes Merah Putih</h1>
             {isLoggedIn && <span className="user-greeting">Halo, {user?.name}</span>}
           </div>
+          {
+            isLoggedIn &&
           <div className="balance-badge">Saldo: Rp {balance.toLocaleString('id-ID')}</div>
+          }
         </div>
         <div className="step-indicator">
           {isLoggedIn && (
@@ -247,9 +250,7 @@ function App() {
               </Link>
             </>
           )}
-          {!isLoggedIn ? (
-            <Link to="/login" className={`nav-item ${location.pathname === '/login' ? 'active' : ''}`}>Login</Link>
-          ) : (
+          {isLoggedIn &&
             <div className="user-menu">
               <button className="nav-item" onClick={() => {
                 setIsLoggedIn(false);
@@ -258,7 +259,7 @@ function App() {
                 navigate('/login');
               }}>Logout</button>
             </div>
-          )}
+          }
         </div>
       </header>
 
