@@ -1,7 +1,3 @@
-# Membuat fungsi test test_payment_user_not_found().
-# Membuat payload Input / Precondition berupa JSON berisikan userId yang tidak valid (misal: 99999) dan voucher kosong.
-# Mengirim request POST ke /cart/pay.
-
 import sys
 import os
 
